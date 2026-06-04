@@ -1,6 +1,6 @@
 CC := gcc
 
-CFLAGS := -Wall -Wextra -Werror -O2
+CFLAGS := -Wall -Wextra -Werror -O2 -fPIC -pthread
 
 INCLUDE := -Iinclude
 

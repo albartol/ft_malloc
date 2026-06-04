@@ -1,24 +1,11 @@
-#ifndef _COLORS
-# define _COLORS
-
-# define BLACK "\033[1;30m"
-# define RED "\033[1;31m"
-# define GREEN "\033[1;32m"
-# define YELLOW "\033[1;33m"
-# define BLUE "\033[1;34m"
-# define MAGENTA "\033[1;35m"
-# define CYAN "\033[1;36m"
-# define WHITE "\033[1;37m"
-# define NC "\033[0m"
-
-#endif // !_COLORS
-
 #ifndef MALLOC_H
 # define MALLOC_H
 
 # include <libft.h>
 # include <unistd.h>
+# include <stdint.h>
 # include <sys/mman.h>
+# include <sys/resource.h>
 
 // # if defined(__APPLE__)
 // #  define PAGESIZE (getpagesize())
@@ -28,16 +15,43 @@
 
 static inline size_t	get_pagesize(void)
 {
+	static size_t pagesize = 0;
+
+	if (pagesize)
+		return pagesize;
+
 	# if defined(__APPLE__)
-		return (getpagesize());
+	pagesize = getpagesize();
 	# elif defined(__linux__)
-		return (sysconf(_SC_PAGESIZE));
+	pagesize = sysconf(_SC_PAGESIZE);
 	# endif
+
+	return pagesize;
 }
+
+// Max size of a single allocation
+static inline size_t get_max_alloc_size(void)
+{
+	static size_t max_size = 0;
+	struct rlimit limit;
+	
+	if (max_size)
+		return max_size;
+
+	if (getrlimit(RLIMIT_AS, &limit) == -1)
+		max_size = SIZE_MAX;
+	else
+		max_size = limit.rlim_cur;
+
+	return max_size;
+}
+
+# define PAGESIZE get_pagesize()
+# define MAX_ALLOC_SIZE get_max_alloc_size()
 
 // Zone sizes in page multiples (PAGESIZE: 4KB)
 // 128 tiny allocs 192 bytes each (24KB)
-# define TINY_ZONE_SIZE (get_pagesize() * 6)
+# define TINY_ZONE_SIZE (PAGESIZE * 6)
 // 128 small allocs 3072 bytes each (384KB)
 # define SMALL_ZONE_SIZE (TINY_ZONE_SIZE * 16)
 
@@ -50,23 +64,35 @@ typedef struct s_zone	t_zone;
 // TINY: 32 bytes header + 1-160 bytes data (33-192 bytes total)
 // SMALL: 32 bytes header + 161-3040 bytes data (193-3072 bytes total)
 // LARGE: 32 bytes header + 3041-n bytes data (3073-n bytes total)
+
+// To ensure a proper alignment the size of the headers must be 
+// multiple of ALIGNMENT.
 # define HEADER_SIZE (sizeof(t_block))
+# define ZONE_HEADER_SIZE (sizeof(t_zone))
+// HEADER_SIZE % ALIGNMENT == 0
+// 32 % 16 == 0
+// 64 % 16 == 0
+# define ALIGNMENT 16
 
 // TINY:
-// This zone blocks have between 33 and 192 bytes
-# define TINY_MIN 33
-# define TINY_MAX 192
 // Data size is between 1 and 160 bytes
 # define TINY_DATA_MIN 1
-# define TINY_DATA_MAX 160
+// # define TINY_DATA_MAX 160
+# define TINY_DATA_MAX (ALIGNMENT * 10)
+// This zone blocks have between 33 and 192 bytes
+# define TINY_MIN 33
+// # define TINY_MAX 192
+# define TINY_MAX (TINY_DATA_MAX + HEADER_SIZE)
 
 // SMALL:
-// This zone blocks have between 193 and 3072 bytes
-# define SMALL_MIN 193
-# define SMALL_MAX 3072
 // Data size is between 161 and 3040 bytes
 # define SMALL_DATA_MIN 161
-# define SMALL_DATA_MAX 3040
+// # define SMALL_DATA_MAX 3040
+# define SMALL_DATA_MAX (TINY_DATA_MAX * 19)
+// This zone blocks have between 193 and 3072 bytes
+# define SMALL_MIN 193
+// # define SMALL_MAX 3072
+# define SMALL_MAX (SMALL_DATA_MAX + HEADER_SIZE)
 
 // LARGE:
 // Anything over 3040 bytes is LARGE (allocated directly)
@@ -87,21 +113,23 @@ enum e_type {
 struct s_block
 {
 	size_t	data_size;
-	int		is_free;
-	int		type;
-	t_block	*next;
+	u_int	is_free;
+	u_int	type;
 	t_block	*prev;
+	t_block	*next;
 };
 
 struct s_zone
 {
 	void	*start;
 	void	*end;
-	int		type;
-	int		remaining_space;
+	void	*last_addr;
+	u_int	type;
+	u_int	free_blocks;
+	size_t	remaining_space;
+	t_block	*blocks;
 	t_zone	*prev;
 	t_zone	*next;
-	t_block	*blocks;
 };
 
 // Global allocator state

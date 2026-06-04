@@ -2,8 +2,17 @@ ifeq ($(HOSTTYPE),)
 	HOSTTYPE := $(shell uname -m)_$(shell uname -s)
 endif
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	PRELOAD_VAR := DYLD_INSERT_LIBRARIES
+	PRELOAD_FLAG := DYLD_FORCE_FLAT_NAMESPACE=1
+else
+	PRELOAD_VAR := LD_PRELOAD
+	PRELOAD_FLAG :=
+endif
+
 CC := gcc
-CFLAGS := -Wall -Wextra -Werror -g3 -pthread
+CFLAGS := -Wall -Wextra -Werror -g3 -pthread -fPIC
 INCLUDE := -I include -I libft/include
 
 SRC_DIR		:= src
@@ -31,9 +40,8 @@ LINK_LIB := -L. -lft_malloc
 all: $(NAME)
 
 $(NAME): libft $(OBJ_DIR) $(OBJ)
-	cp $(LIBFT) $(NAME)
-	ar rcs $(NAME) $(OBJ)
-	ln -s $(NAME) $(LINK)
+	$(CC) -shared $(CFLAGS) $(OBJ) $(LIBFT) -o $(NAME)
+	ln -sf $(NAME) $(LINK)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
@@ -58,9 +66,11 @@ fclean: clean
 re: fclean all
 
 test: all $(TEST_NAME)
+	$(PRELOAD_VAR)=./$(LINK) $(PRELOAD_FLAG) ./$(TEST_NAME)
 
 $(TEST_NAME): $(TST_OBJ_DIR) $(TST_OBJ)
-	$(CC) $(CFLAGS) $(INCLUDE) $(TST_OBJ) -o $@ $(LINK_LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) $(TST_OBJ) -o $@
+# 	$(CC) $(CFLAGS) $(INCLUDE) $(TST_OBJ) -o $@ $(LINK_LIB)
 
 $(TST_OBJ_DIR):
 	mkdir -p $(TST_OBJ_DIR)
@@ -71,5 +81,6 @@ $(TST_OBJ_DIR)/%.o: $(TEST_DIR)/%.c
 print_info:
 	@echo HOSTTYPE: [$(HOSTTYPE)]
 	@echo NAME: [$(NAME)]
+	@echo OS: [$(UNAME_S)]
 
 .PHONY: all clean fclean re test print_info
