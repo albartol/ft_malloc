@@ -1,7 +1,5 @@
 #include <malloc.h>
 #include <stdio.h>
-#include <errno.h>
-#include <string.h>
 #include <colors.h>
 
 static void print_info(void)
@@ -169,7 +167,72 @@ static void test_realloc(void)
 	printf(GOLD_TEXT"\n");
 	printf("====================== Testing realloc() ======================\n");
 	printf(NC"\n");
-	printf(YELLOW"(realloc implementation pending)\n"NC);
+	
+	{
+		printf(BLUE"Test 1: realloc(NULL, size) should behave like malloc\n"NC);
+		void *r1 = realloc(NULL, 50);
+		printf(BLUE"realloc(NULL, 50):"TEAL_256" %p\n"NC, r1);
+		if (r1)
+			printf(GREEN"Returned valid pointer\n"NC);
+		printf("\n");
+
+		printf(BLUE"Test 2: realloc(ptr, 0) should behave like free\n"NC);
+		void *r2 = realloc(r1, 0);
+		if (!r2)
+			printf(GREEN"Returned NULL\n"NC);
+		else
+			printf(RED"Should return NULL\n"NC);
+		printf("\n");
+	}
+	{
+		printf(BLUE"Test 3: Shrink allocation\n"NC);
+		void *r3 = malloc(200);
+		printf(BLUE"malloc(200):"TEAL_256" %p\n", r3);
+		void *r3_shrink = realloc(r3, 50);
+		printf(BLUE"realloc(r3, 50):"TEAL_256" %p\n"NC, r3_shrink);
+		if (r3_shrink == r3)
+			printf(GREEN"Same pointer (in-place shrink)\n"NC);
+		else
+			printf(YELLOW"Different pointer (defrag occurred)\n"NC);
+		printf("\n");
+		free(r3_shrink);
+	}
+	{
+		printf(BLUE"Test 4: Grow allocation\n"NC);
+		void *r4 = malloc(50);
+		printf(BLUE"malloc(50):"TEAL_256" %p\n", r4);
+		void *r4_grow = realloc(r4, 500);
+		printf(BLUE"realloc(r4, 500):"TEAL_256" %p\n"NC, r4_grow);
+		if (r4_grow != r4)
+			printf(GREEN"Different pointer (new block allocated)\n"NC);
+		else
+			printf(YELLOW"Same pointer (unexpected)\n"NC);
+		printf("\n");
+		free(r4_grow);
+	}
+	{
+		printf(BLUE"Test 5: Data preservation during realloc\n"NC);
+		void *r5 = malloc(100);
+		ft_memset(r5, 'A', 100);
+		void *r5_new = realloc(r5, 200);
+		char *data = (char *)r5_new;
+		int valid = 1;
+		for (int i = 0; i < 100; i++)
+		{
+			if (data[i] != 'A')
+			{
+				valid = 0;
+				break;
+			}
+		}
+		if (valid)
+			printf(GREEN"Data preserved after realloc\n"NC);
+		else
+			printf(RED"Data corrupted\n"NC);
+		printf(NC"\n");
+		free(r5_new);
+	}
+
 	printf(NC"\n");
 }
 
