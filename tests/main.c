@@ -1,8 +1,10 @@
-#include <malloc.h>
 #include <stdio.h>
+#include <malloc.h>
+#include <utils.h>
 #include <colors.h>
+#include <libft.h>
 
-static void print_info(void)
+static void	print_info(void)
 {
 	printf(GOLD_TEXT"\n");
 	printf("====================== Size of variables ======================\n");
@@ -13,21 +15,27 @@ static void print_info(void)
 	printf(BLUE"SMALL_ZONE_SIZE:"TEAL_256" %lu\n", SMALL_ZONE_SIZE);
 	printf(BLUE"HEADER_SIZE:"TEAL_256" %lu\n", HEADER_SIZE);
 	printf(BLUE"ZONE_HEADER_SIZE:"TEAL_256" %lu\n", ZONE_HEADER_SIZE);
-	printf(BLUE"ALIGNMENT:"TEAL_256" %d\n", ALIGNMENT);
+	printf(BLUE"ALIGNMENT:"TEAL_256" %lu\n", ALIGNMENT);
 	printf(BLUE"TINY_MIN:"TEAL_256" %d\n", TINY_MIN);
+	printf(BLUE"ALIGNED TINY_MIN:"TEAL_256" %zu\n", align_size(TINY_MIN));
 	printf(BLUE"TINY_MAX:"TEAL_256" %lu\n", TINY_MAX);
 	printf(BLUE"TINY_DATA_MIN:"TEAL_256" %d\n", TINY_DATA_MIN);
-	printf(BLUE"TINY_DATA_MAX:"TEAL_256" %d\n", TINY_DATA_MAX);
+	printf(BLUE"ALIGNED TINY_DATA_MIN:"TEAL_256" %zu\n", align_size(TINY_DATA_MIN));
+	printf(BLUE"TINY_DATA_MAX:"TEAL_256" %lu\n", TINY_DATA_MAX);
 	printf(BLUE"SMALL_MIN:"TEAL_256" %d\n", SMALL_MIN);
+	printf(BLUE"ALIGNED SMALL_MIN:"TEAL_256" %zu\n", align_size(SMALL_MIN));
 	printf(BLUE"SMALL_MAX:"TEAL_256" %lu\n", SMALL_MAX);
 	printf(BLUE"SMALL_DATA_MIN:"TEAL_256" %d\n", SMALL_DATA_MIN);
-	printf(BLUE"SMALL_DATA_MAX:"TEAL_256" %d\n", SMALL_DATA_MAX);
+	printf(BLUE"ALIGNED SMALL_DATA_MIN:"TEAL_256" %zu\n", align_size(SMALL_DATA_MIN));
+	printf(BLUE"SMALL_DATA_MAX:"TEAL_256" %lu\n", SMALL_DATA_MAX);
 	printf(BLUE"LARGE_MIN:"TEAL_256" %d\n", LARGE_MIN);
+	printf(BLUE"ALIGNED LARGE_MIN:"TEAL_256" %zu\n", align_size(LARGE_MIN));
 	printf(BLUE"LARGE_DATA_MIN:"TEAL_256" %d\n", LARGE_DATA_MIN);
+	printf(BLUE"ALIGNED LARGE_DATA_MIN:"TEAL_256" %zu\n", align_size(LARGE_DATA_MIN));
 	printf("\n");
 }
 
-static void test_malloc(void)
+static void	test_malloc(void)
 {
 	printf(GOLD_TEXT"\n");
 	printf("====================== Testing malloc() ======================\n");
@@ -66,41 +74,40 @@ static void test_malloc(void)
 	printf(BLUE"Distance between p4 and p5:"TEAL_256" %lu\n", (p5 > p4) ? p5 - p4 : p4 - p5);
 	printf(BLUE"Distance between p5 and p6:"TEAL_256" %lu\n", (p6 > p5) ? p6 - p5 : p5 - p6);
 	printf(NC"\n");
-	free(p1); free(p2); free(p3); free(p4); free(p5); free(p6);
-	{
-		printf(BLUE"Test: malloc(0)\n"NC);
-		void *p7 = malloc(0);
-		if (!p7)
-			printf(GREEN"malloc(0) == NULL\n"NC);
-		else
-			printf(RED"malloc(0) returned %p (expected NULL)\n"NC, p7);
-		printf("\n");
-		free(p7);
-	}
-	{
-		printf(BLUE"Test: malloc(MAX_ALLOC_SIZE)\n"NC);
-		void *p8 = malloc(MAX_ALLOC_SIZE);
-		if (!p8)
-			printf(GREEN"malloc(MAX_ALLOC_SIZE) == NULL\n"NC);
-		else
-			printf(RED"malloc(MAX_ALLOC_SIZE) returned %p (expected NULL)\n"NC, p8);
-		printf("\n");
-		free(p8);
-	}
-	{
-		printf(BLUE"Test: malloc(MAX_ALLOC_SIZE - overhead)\n"NC);
-		size_t near_max = MAX_ALLOC_SIZE - ((HEADER_SIZE + ZONE_HEADER_SIZE) << 1);
-		void *p9 = malloc(near_max);
-		if (!p9)
-			printf(GREEN"malloc(%lu) == NULL\n"NC, near_max);
-		else
-			printf(RED"malloc(%lu) returned %p (expected NULL)\n"NC, near_max, p9);
-		printf(NC"\n");
-		free(p9);
-	}
+
+	printf(BLUE"Test: malloc(0)\n"NC);
+	void *p7 = malloc(0);
+	if (!p7)
+		printf(GREEN"malloc(0) == NULL\n"NC);
+	else
+		printf(RED"malloc(0) returned %p (expected NULL)\n"NC, p7);
+	printf("\n");
+
+	printf(BLUE"Test: malloc(MAX_ALLOC_SIZE)\n"NC);
+	void *p8 = malloc(MAX_ALLOC_SIZE);
+	if (!p8)
+		printf(GREEN"malloc(MAX_ALLOC_SIZE) == NULL\n"NC);
+	else
+		printf(RED"malloc(MAX_ALLOC_SIZE) returned %p (expected NULL)\n"NC, p8);
+	printf("\n");
+
+	printf(BLUE"Test: malloc(MAX_ALLOC_SIZE - overhead)\n"NC);
+	size_t near_max = MAX_ALLOC_SIZE - ((HEADER_SIZE + ZONE_HEADER_SIZE) << 1);
+	void *p9 = malloc(near_max);
+	if (!p9)
+		printf(GREEN"malloc(%lu) == NULL\n"NC, near_max);
+	else
+		printf(RED"malloc(%lu) returned %p (expected NULL)\n"NC, near_max, p9);
+	printf(NC"\n");
+	
+	show_alloc_mem_ex();
+	free(p1); free(p2); free(p3);
+	free(p4); free(p5); free(p6);
+	free(p7); free(p8); free(p9);
+	show_alloc_mem_ex();
 }
 
-static void test_free(void)
+static void	test_free(void)
 {
 	printf(GOLD_TEXT"\n");
 	printf("====================== Testing free() ======================\n");
@@ -162,7 +169,7 @@ static void test_free(void)
 	}
 }
 
-static void test_realloc(void)
+static void	test_realloc(void)
 {
 	printf(GOLD_TEXT"\n");
 	printf("====================== Testing realloc() ======================\n");
@@ -247,9 +254,12 @@ int main(void)
 	printf(NC"\n");
 
 	print_info();
+	show_alloc_mem_ex();
 	test_malloc();
 	test_free();
+	show_alloc_mem_ex();
 	test_realloc();
+	show_alloc_mem_ex();
 
 	return 0;
 }

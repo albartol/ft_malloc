@@ -1,11 +1,13 @@
 #ifndef MALLOC_H
 # define MALLOC_H
 
-# include <libft.h>
 # include <unistd.h>
 # include <stdint.h>
 # include <sys/mman.h>
 # include <sys/resource.h>
+# include <sys/types.h>
+# include <stddef.h>
+# include <stdalign.h>
 
 // # if defined(__APPLE__)
 // #  define PAGESIZE (getpagesize())
@@ -56,9 +58,9 @@ static inline size_t get_max_alloc_size(void)
 # define SMALL_ZONE_SIZE (TINY_ZONE_SIZE * 16)
 
 // Structure for tracking allocations
-typedef struct s_block	t_block;
+typedef struct s_block_header	t_block;
 // Structure for tracking allocation zones
-typedef struct s_zone	t_zone;
+typedef struct s_zone_header	t_zone;
 
 // Allocation size boundaries
 // TINY: 32 bytes header + 1-160 bytes data (33-192 bytes total)
@@ -72,7 +74,10 @@ typedef struct s_zone	t_zone;
 // HEADER_SIZE % ALIGNMENT == 0
 // 32 % 16 == 0
 // 64 % 16 == 0
-# define ALIGNMENT 16
+// # define ALIGNMENT 16
+# define ALIGNMENT alignof(max_align_t)
+
+# define MIN_SPLIT_SIZE (HEADER_SIZE + ALIGNMENT)
 
 // TINY:
 // Data size is between 1 and 160 bytes
@@ -105,29 +110,32 @@ typedef struct s_zone	t_zone;
 # define IS_LARGE(size) ((size) >= LARGE_DATA_MIN)
 
 enum e_type {
-	TINY = 0,
-	SMALL = 1,
-	LARGE = 2,
+	TINY,
+	SMALL,
+	LARGE,
+	EMPTY,
+	BLOCK
 };
 
-struct s_block
+struct s_block_header
 {
 	size_t	data_size;
-	u_int	is_free;
-	u_int	type;
+	void	*end;
 	t_block	*prev;
 	t_block	*next;
 };
 
-struct s_zone
+struct s_zone_header
 {
 	void	*start;
 	void	*end;
-	void	*last_addr;
 	u_int	type;
-	u_int	free_blocks;
+	u_int	blocks_num;
+	size_t	total_space;
 	size_t	remaining_space;
+	size_t	max_free_space_size;
 	t_block	*blocks;
+	t_block *empty_spaces;
 	t_zone	*prev;
 	t_zone	*next;
 };
@@ -160,7 +168,7 @@ void	*realloc(void *ptr, size_t size);
 	// LARGE : 0xB0000
 	// 0xB0020 - 0xBBEEF : 48847 bytes
 	// Total : 52698 bytes
-void	show_alloc_mem();
+void	show_alloc_mem(void);
 
 //BONUS:
 
@@ -170,6 +178,6 @@ void	show_alloc_mem();
 extern pthread_mutex_t g_malloc_lock;
 
 // show_alloc_mem but with extra details (history, hexadecimal dump).
-void	show_alloc_mem_ex();
+void	show_alloc_mem_ex(void);
 
 #endif // MALLOC_H
